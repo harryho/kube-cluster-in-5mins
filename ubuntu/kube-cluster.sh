@@ -131,7 +131,8 @@ _debug() {
   if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_1" ]; then
     _log "$@"
   fi
-    if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_2" ]; then
+  
+  if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_2" ]; then
     _printargs "$@" >&2
   fi
   # if [ "${DEBUG:-$DEBUG_LEVEL_NONE}" -ge "$DEBUG_LEVEL_1" ]; then
@@ -168,35 +169,34 @@ install_docker(){
   # echo $BEGIN_DOCKER
   printf -- "$BEGIN install_docker(): %s" "[$(date)] \n" >&2
 
-
-    apt-get update;
-    apt-get install -y apt-transport-https \
-      ca-certificates curl \
-      gnupg-agent software-properties-common;
+  apt-get update
+  apt-get install -y apt-transport-https \
+    ca-certificates curl \
+    gnupg-agent software-properties-common;
 
     _finger=$(apt-key finger | egrep "0EBFCD88")
     # echo $_finger
   # if _command_exists docker; then
-    [ -z "$_finger" ] && ( 
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-      apt-key fingerprint 0EBFCD88 )
+  [ -z "$_finger" ] && ( 
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    apt-key fingerprint 0EBFCD88 )
     
   
-    _docker_repo=$(apt-cache policy|egrep "docker")
+  _docker_repo=$(apt-cache policy|egrep "docker")
     # if [ -z "$_docker_repo" ] ;
     # then
-    [ -z "$_docker_repo" ] && (
-      add-apt-repository \
-       "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-       $(lsb_release -cs) \
-       stable" )
+  [ -z "$_docker_repo" ] && (
+    add-apt-repository \
+     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+     $(lsb_release -cs) \
+     stable" )
     # fi
 
-    apt-get update
+  apt-get update
 
-    apt-get install -y docker-ce docker-ce-cli containerd.io
+  apt-get install -y docker-ce docker-ce-cli containerd.io
 
-    usermod -aG docker $_USER 
+  usermod -aG docker $_USER 
   # else 
       # _debug "$HOORAY: docker is found!"
   # fi
@@ -613,7 +613,7 @@ _process() {
           _debug "You can find log file from: $DEFAULT_LOG_FILE"
           shift
         fi
-        LOG_FILE="$_logfile"
+        LOG_FILE="$DEFAULT_LOG_FILE"
         if [ -z "$LOG_LEVEL" ]; then
           LOG_LEVEL="$DEFAULT_LOG_LEVEL"
         fi
