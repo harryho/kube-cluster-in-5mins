@@ -168,39 +168,38 @@ install_docker(){
   # echo $BEGIN_DOCKER
   printf -- "$BEGIN install_docker(): %s" "[$(date)] " >&2
 
-  if _command_exists docker; then
+
     apt-get update;
     apt-get install -y apt-transport-https \
       ca-certificates curl \
       gnupg-agent software-properties-common;
 
     _finger=$(apt-key finger | egrep "0EBFCD88")
-    echo $_finger
-    if [ -z "$_finger" ];
-    then 
-     curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-       | sudo apt-key add -
-
-     apt-key fingerprint 0EBFCD88
-    fi;
+    # echo $_finger
+  # if _command_exists docker; then
+    [ -z "$_finger" ] && ( 
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+      apt-key fingerprint 0EBFCD88 )
+    
   
     _docker_repo=$(apt-cache policy|egrep "docker")
-    if [ -z "$_docker_repo" ] ;
-    then
+    # if [ -z "$_docker_repo" ] ;
+    # then
+    [ -z "$_docker_repo" ] && (
       add-apt-repository \
        "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
        $(lsb_release -cs) \
-       stable"
-    fi
+       stable" )
+    # fi
 
     apt-get update
 
     apt-get install -y docker-ce docker-ce-cli containerd.io
 
     usermod -aG docker $_USER 
-  else 
-      _debug "$HOORAY: docker is found!"
-  fi
+  # else 
+      # _debug "$HOORAY: docker is found!"
+  # fi
 
   # echo $END_DOCKER
   printf -- "$END install_docker(): %s" "[$(date)] " >&2
@@ -403,6 +402,7 @@ setup_kube_config(){
 
 init() {
    printf -- "$BEGIN init(): %s" "[$(date)] " >&2
+
    _debug init
 
    install_docker 
@@ -412,7 +412,7 @@ init() {
 
    init_cluster
    install_dashboard
-  #  _install_heapster
+   #  _install_heapster
    setup_kube_config
    
    printf -- "$END init(): %s" "[$(date)] " >&2  
