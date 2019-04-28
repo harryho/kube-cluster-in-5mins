@@ -147,12 +147,12 @@ _cleanup() {
   VERBOSE=0
 }
 
-check_permission(){
+_check_permission(){
   if [[ "$(whoami)" != "root" ]]
   then 
     __red "The script must be run as root"
     __red "Please switch to root user"
-    __hints
+    # __hints
     exit
   fi
 }
@@ -167,7 +167,7 @@ install_docker(){
 
   echo $BEGIN_DOCKER
   
-  if [ -z $(_command_exists docker) ]; then
+  if _command_exists docker; then
     apt-get update;
     apt-get install -y apt-transport-https \
       ca-certificates curl \
@@ -226,9 +226,7 @@ __update_cgroup(){
   systemctl restart docker
 }
 
-__is_cluster_available(){
 
-}
 
 install_kube(){
   _debug install_kube
@@ -236,9 +234,7 @@ install_kube(){
   echo $BEGIN_KUBE
   
   __update_cgroup
-  if [ -z $( _command_exists kubeadm) ] \
-     || [ -z $(_command_exists kubelet) ] \
-     || [ -z $(_command_exists kubectl) ] ;
+  if [ -z $( _command_exists kubeadm) ] || [ -z $(_command_exists kubelet) ] || [ -z $(_command_exists kubectl) ] ;
   then
     apt-get update && apt-get install -y apt-transport-https curl
   
@@ -421,97 +417,96 @@ init() {
 reset() {
 
   printf -- "$BEGIN--reset(): %s" "[$(date)] " >&2
+rst=$(_command_exists kubelet)
+echo $rst
+  if _command_exists kubelet ; then
+     # check if the cluster is still available
+    NodeNotFound=$(systemctl status kubelet | grep "not found" | wc --lines)
+  
+    if [ $NodeNotFound > 0 ] ;
+    then
+      printf "\n $CRYING: WARNING: Your IP address has been changed!!!"
+      printf "\n $WORKING: Kubeadm will be reset and init again. \n"
+    fi;
+  
+    _debug "$WORKING: reset kubeadm at "$(date)
+  
+  
+    kubeadm reset  -f
+  
+    iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+  
+  
+    if [[ -d "/etc/kubernetes" ]]
+    then
+      rm -rf /etc/kubernetes/manifests /etc/kubernetes/pki
+      rm -f /etc/kubernetes/admin.conf /etc/kubernetes/kubelet.conf /etc/kubernetes/bootstrap-kubelet.conf /etc/kubernetes/controller-manager.conf /etc/kubernetes/scheduler.conf 
+    fi;
+  
+    systemctl restart docker
+    systemctl daemon-reload
+    systemctl stop kubelet
 
-  if [ -z $(_command_exists kubelet)]; then
+    for c in $(docker container ls | egrep  -o "k8s_weave.*" )
+    do
+      docker container stop $c  --force
+      docker container rm $c --force
+    done;
+  
+    if [[ -d "/home/$_USER/.kube/" ]] 
+    then 
+      [[ -f "/home/$_USER/.kube/config" ]] && rm -f /home/$_USER/.kube/config;
+      [[ -d "/home/$_USER/.kube/cache" ]] && rm -rf /home/$_USER/.kube/cache; 
+    fi;
+  
+    if [[ -d "/root/.kube/" ]] 
+    then 
+      [[ -f "/root/.kube/config" ]] && rm -f /root/.kube/config;
+      [[ -d "/root/.kube/cache" ]] && rm -rf /root/.kube/cache;
+    fi;
+  
+    systemctl start kubelet
+  else
     msg="$CRYING: Kubelet is not found! Please install kubelet first"
     echo $msg
     _debug $msg
     __hints
     exit
-  else
-  # check if the cluster is still available
-  NodeNotFound=$(systemctl status kubelet | grep "not found" | wc --lines)
-  
-  if [ $NodeNotFound > 0 ] ;
-  then
-      printf "\n $CRYING: WARNING: Your IP address has been changed!!!"
-      printf "\n $WORKING: Kubeadm will be reset and init again. \n"
   fi;
   
-  _debug "$WORKING: reset kubeadm at "$(date)
-  
-  
-  kubeadm reset  -f
-  
-  iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
-  
-  
-  if [[ -d "/etc/kubernetes" ]]
-  then
-    rm -rf /etc/kubernetes/manifests /etc/kubernetes/pki
-    rm -f /etc/kubernetes/admin.conf /etc/kubernetes/kubelet.conf /etc/kubernetes/bootstrap-kubelet.conf /etc/kubernetes/controller-manager.conf /etc/kubernetes/scheduler.conf 
-  fi;
-  
-  systemctl restart docker
-  systemctl daemon-reload
-  systemctl stop kubelet
-
-  for c in $(docker container ls | egrep  -o "k8s_weave.*" )
-  do
-    docker container stop $c  --force
-    docker container rm $c --force
-  done;
-  
-  if [[ -d "/home/$_USER/.kube/" ]] 
-  then 
-     [[ -f "/home/$_USER/.kube/config" ]] && rm -f /home/$_USER/.kube/config;
-     [[ -d "/home/$_USER/.kube/cache" ]] && rm -rf /home/$_USER/.kube/cache; 
-  fi;
-  
-  if [[ -d "/root/.kube/" ]] 
-  then 
-     [[ -f "/root/.kube/config" ]] && rm -f /root/.kube/config;
-     [[ -d "/root/.kube/cache" ]] && rm -rf /root/.kube/cache;
-  fi;
-  
-  systemctl start kubelet
-  
-  printf -- "$END--reset(): %s" "[$(date)] " >&2
-
+  printf -- "$END--reset(): %s" "[$(date)]\n " >&2
 }
 
 __uninstall(){
   __red "WARNING!!! It is a hidden feature. You are supposed to know what you are doinig. \n"
 
-  read -s "Do you want to continue? Y or N [yYnN]" _yes_or_no
-
-  if [ "$__yes_or_no" = "Y"] ; then
-    
-    printf -- "$BEGIN__uninstall(): %s" "[$(date)] " >&2
-    _debug __uninstall
+  read -p "Do you want to continue? Y or N [yYnN]: " _yes_or_no
+echo $_yes_or_no
+    if [[ "$_yes_or_no" == "Y" ]] || [[ "$_yes_or_no" == "y" ]] ; then
+      printf -- "$BEGIN__uninstall(): %s" "[$(date)] " >&2
+      _debug __uninstall
    
-    __red "The script will start uninstallation process in 5 seconds. You can cancel by pressing Ctrl + C or Ctrl + D or Ctrl + Z".
+      __red "\n The script will start uninstallation process in 5 seconds. You can cancel by pressing Ctrl + C or Ctrl + D or Ctrl + Z".
     
-    sleep 5
+      sleep 5
 
-    _debug "Stop and disable kubelet and docker"
+      _debug "Stop and disable kubelet and docker"
 
-    systemctl stop kubelet
-    systemctl stop docker*
-    systemctl disable kubelet
-    systemctl disable docker*
+      systemctl stop kubelet
+      systemctl stop docker*
+#      systemctl disable kubelet
+#     systemctl disable docker*
     
-    _debug "Uninstall kubelet and docker"
+      _debug "Uninstall kubelet and docker"
 
-    apt-mark unhold kubectl kubeadm kubelet
-    apt purge -y kubelet kubeadm kubectl
-    apt purge -y docker-ce docker-ce-cli containerd.io
-    apt autoremove -y
-    rm -f /usr/bin/kubeadm  /usr/bin/kubelet /usr/bin/kubectl
+      apt-mark unhold kubectl kubeadm kubelet
+      apt purge -y kubelet kubeadm kubectl
+      apt purge -y docker-ce docker-ce-cli containerd.io
+      apt autoremove -y
+      rm -f /usr/bin/kubeadm  /usr/bin/kubelet /usr/bin/kubectl
 
-    printf -- "$END__uninstall(): %s" "[$(date)] " >&2
-
-  fi
+      printf -- "$END__uninstall\(\): %s" "[$(date)] " >&2
+   fi
 }
 
 
@@ -522,7 +517,6 @@ __init_setting(){
 }
 
 logo(){
-  # echo |  cat < $LOGO
 cat >&2<<- 'EOF'   
  .S    S.    .S       S.    .S_SSSs      sSSs
 .SS    SS.  .SS       SS.  .SS~SSSSS    d%%SP
@@ -547,7 +541,8 @@ EOF
 version() {
   echo "$PROJECT $VER"
   echo "Author: $AUTHOR"
-  echo "$HOORAY Welome to use kube-cluster script!"
+  printf "$HOORAY Welome to use kube-cluster script! \n"
+  printf "\n">&2
 }
 
 _process() {
@@ -596,7 +591,7 @@ _process() {
         ;;       
       --user)
         _USER="$2"
-        if [ "$_USER" ="root" ]; then
+        if [[ "$_USER" == "root" ]]; then
            cd  /$_USER
         else 
            cd /home/$_USER 
@@ -605,14 +600,6 @@ _process() {
         ;;
       --verbose)
         VERBOSE=1
-        ;;
-      # --debug)
-      #   if [ -z "$2" ] || _startswith "$2" "-"; then
-      #     DEBUG="$DEBUG_LEVEL_DEFAULT"
-      #   else
-      #     DEBUG="$2"
-      #     shift
-      #   fi
         ;;
       --log | --logfile)
         _log="1"
@@ -664,11 +651,11 @@ _process() {
     install_dashboard)
       install_dashboard
       ;;
-    setup_kube_config
+    setup_kube_config)
       setup_kube_config
       ;;
-    uninstall
-      uninstall
+    uninstall)
+      __uninstall
       ;;
     *)
       if [ "$_CMD" ]; then
@@ -676,13 +663,14 @@ _process() {
       fi
       showhelp
       return 1
+      ;;
   esac
 }
 
 
 showhelp() {
 
-  version
+  # version
   echo "Usage: $PROJECT_ENTRY  command ...parameters....
 Commands:
   --help, -h                        Show this help message.
@@ -712,7 +700,7 @@ Examples:
 }
 
 main() {
-  check_permission
+  _check_permission
   logo
   [ -z "$1" ] && showhelp && return
   if _startswith "$1" '-'; then _process "$@"; else "$@"; fi
