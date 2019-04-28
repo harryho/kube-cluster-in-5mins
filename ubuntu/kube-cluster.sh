@@ -115,7 +115,7 @@ _info() {
 _err() {
   _log "$@"
   # if [ -z "$NO_TIMESTAMP" ] || [ "$NO_TIMESTAMP" = "0" ]; then
-    printf -- "ERROR: %s" "[$(date)] \n" >&2
+    printf -- "ERROR: %s" "[$(date)]" >&2; printf "\n" >&2
   # fi
   if [ -z "$2" ]; then
     __red "$1" >&2
@@ -167,7 +167,7 @@ install_docker(){
   _debug install_docker 
 
   # echo $BEGIN_DOCKER
-  printf -- "$BEGIN install_docker(): %s" "[$(date)] \n" >&2
+  printf -- "$BEGIN install_docker(): %s" "[$(date)]" >&2; printf "\n" >&2
 
   apt-get update
   apt-get install -y apt-transport-https \
@@ -202,7 +202,7 @@ install_docker(){
   # fi
 
   # echo $END_DOCKER
-  printf -- "$END install_docker(): %s" "[$(date)] \n" >&2
+  printf -- "$END install_docker(): %s" "[$(date)]" >&2; printf "\n" >&2
 
 }
 
@@ -231,7 +231,7 @@ __update_cgroup(){
 install_kube(){
   _debug install_kube
   
-  printf -- "$BEGIN install_kube(): %s" "[$(date)] \n" >&2
+  printf -- "$BEGIN install_kube(): %s" "[$(date)]" >&2; printf "\n" >&2
 
   __update_cgroup
   #if [ -z $( _command_exists kubeadm) ] || [ -z $(_command_exists kubelet) ] || [ -z $(_command_exists kubectl) ] ;
@@ -255,7 +255,7 @@ install_kube(){
   apt-get install -y kubelet kubeadm kubectl
   apt-mark hold kubelet kubeadm kubectl
 
-  printf -- "$END install_kube(): %s" "[$(date)] \n" >&2
+  printf -- "$END install_kube(): %s" "[$(date)]" >&2; printf "\n" >&2
 }
 
 __disable_swap(){
@@ -273,7 +273,7 @@ __disable_swap(){
 
 init_cluster() {
 
-  printf -- "$BEGIN init_cluster(): %s" "[$(date)] \n" >&2
+  printf -- "$BEGIN init_cluster(): %s" "[$(date)]" >&2; printf "\n" >&2
   _debug init_cluster
 
   __disable_swap
@@ -285,13 +285,13 @@ init_cluster() {
   systemctl daemon-reload
   systemctl restart kubelet
 
-  printf -- "$END init_cluster(): %s" "[$(date)] \n" >&2
+  printf -- "$END init_cluster(): %s" "[$(date)]" >&2; printf "\n" >&2
 
 }
 
 install_dashboard() {
   
-  printf -- "$BEGIN install_dashboard(): %s" "[$(date)] \n" >&2
+  printf -- "$BEGIN install_dashboard(): %s" "[$(date)]" >&2; printf "\n" >&2
   _debug install_dashboard
   # echo $BEGIN_DASHBOARD
 
@@ -346,7 +346,7 @@ EOF
   
   __install_heapster
 
-  printf -- "$END install_dashboard(): %s" "[$(date)] \n" >&2
+  printf -- "$END install_dashboard(): %s" "[$(date)]" >&2; printf "\n" >&2
 
  }
 
@@ -354,7 +354,7 @@ __install_heapster() {
    
   #  echo $BEGIN_HEAPSTER
    _debug __install_heapster
-   printf -- "$BEGIN __install_heapster(): %s" "[$(date)] \n" >&2
+   printf -- "$BEGIN __install_heapster(): %s" "[$(date)]" >&2; printf "\n" >&2
 
 
    [[ -d "harryho-heapster" ]] && rm -rf harryho-heapster
@@ -363,14 +363,14 @@ __install_heapster() {
    kubectl apply -f harryho-heapster/deploy/kube-config/influxdb/
    rm -rf harryho-heapster
 
-   printf -- "$END __install_heapster(): %s" "[$(date)] \n" >&2
+   printf -- "$END __install_heapster(): %s" "[$(date)]" >&2; printf "\n" >&2
 
 
 }
 
 setup_kube_config(){
 
-  printf -- "$BEGIN setup_kube_config(): %s" "[$(date)] \n" >&2
+  printf -- "$BEGIN setup_kube_config(): %s" "[$(date)]" >&2; printf "\n" >&2
 
 
    # setup kube config for a regular user
@@ -394,14 +394,14 @@ setup_kube_config(){
   _debug $END_KUBE_CONFIG
   unset KUBECONFIG
   
-  printf -- "$END setup_kube_config(): %s" "[$(date)] \n" >&2
+  printf -- "$END setup_kube_config(): %s" "[$(date)]" >&2; printf "\n" >&2
   # cd $_USER 
   su $_USER && cd
 
 }
 
 init() {
-   printf -- "$BEGIN init(): %s" "[$(date)] \n" >&2
+   printf -- "$BEGIN init(): %s" "[$(date)]" >&2; printf "\n" >&2
 
    _debug init
 
@@ -415,12 +415,12 @@ init() {
    #  _install_heapster
    setup_kube_config
    
-   printf -- "$END init(): %s" "[$(date)] \n" >&2  
+   printf -- "$END init(): %s" "[$(date)]" >&2; printf "\n" >&2  
 }
 
 reset() {
 
-  printf -- "$BEGIN reset(): %s" "[$(date)] \n" >&2
+  printf -- "$BEGIN reset(): %s" "[$(date)]" >&2; printf "\n" >&2
 rst=$(_command_exists kubelet)
 echo $rst
   if _command_exists kubelet ; then
@@ -487,7 +487,7 @@ __uninstall(){
   read -p "Do you want to continue? Y or N [yYnN]: " _yes_or_no
 # echo $_yes_or_no
     if [[ "$_yes_or_no" == "Y" ]] || [[ "$_yes_or_no" == "y" ]] ; then
-      printf -- "$BEGIN __uninstall(): %s" "[$(date)] \n" >&2
+      printf -- "$BEGIN __uninstall(): %s" "[$(date)]" >&2; printf "\n" >&2
       _debug __uninstall
    
       __red "\n The script will start uninstallation process in 5 seconds. You can cancel by pressing Ctrl + C or Ctrl + D or Ctrl + Z".
@@ -507,7 +507,7 @@ __uninstall(){
       apt autoremove -y
       rm -f /usr/bin/kubeadm  /usr/bin/kubelet /usr/bin/kubectl
 
-      printf -- "$END __uninstall(): %s" "[$(date)] \n" >&2
+      printf -- "$END __uninstall(): %s" "[$(date)]" >&2; printf "\n" >&2
    fi
 }
 
