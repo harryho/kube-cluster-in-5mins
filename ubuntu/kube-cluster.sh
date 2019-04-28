@@ -687,10 +687,12 @@ showhelp() {
 Commands:
   --help, -h                        Show this help message.
   --version, -v                     Show version info.
-  --init                            Create a new cluster. If existing cluster is found, the script will launch --reset command to remove the old cluster
+  --init                            Launch a few commands in order, including install docker and kubernetes, if they are not found in the system, and then create a new cluster. If existing cluster is found, the script will call --reset command to remove the existing cluster. After that, it will install dashboard and heapster. Finally, it will setup kube configuation to the user home dir. 
   --reset                           Cleanup and remove the old cluster.               
   --install-docker                  Install docker if the docker is not found.
   --install-kube                    Install kubeadm, kubelet and kubectl if kubernetes is not found.
+  --init-cluster                    Initiate a new cluster if the kubelet is found. It will call --reset command to remove the existing one.
+  --kube-config                     Setup a kube config to a new user home dir. 
   --log    [/path/to/logfile]       Specifies the log file. The default is: \"$DEFAULT_LOG_FILE\" if you don't give a file path here.
   --log-level 1|2                   Specifies the log level, default is 1.
   
