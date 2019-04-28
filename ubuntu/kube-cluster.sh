@@ -374,15 +374,22 @@ setup_kube_config(){
 
 
    # setup kube config for a regular user
-  if [[ -d "/home/$_USER/.kube" ]]
+  
+  _debug "WORKING_DIR" "$WORKING_DIR"
+  _debug "LOG_FILE" "$LOG_FILE"
+
+  if [[ -d "$WORKING_DIR/.kube" ]]
   then 
       _debug "$WORKING: Backup old .kube folder to .kube_backup"
-      mv -f  /home/$_USER/.kube /home/$_USER/.kube_backup
+      rm -rf $WORKING_DIR/.kube_backup
+      mv -f  $WORKING_DIR/.kube $WORKING_DIR/.kube_backup
   fi
+
+
   
-  mkdir -p /home/$_USER/.kube
-  cp -i /etc/kubernetes/admin.conf /home/$_USER/.kube/config
-  chown -R $_USER:$_USER /home/$_USER/.kube/
+  mkdir -p $WORKING_DIR/.kube
+  cp -i /etc/kubernetes/admin.conf $WORKING_DIR/.kube/config
+  chown -R $_USER:$_USER $WORKING_DIR/.kube
   
   # sleep 5
   
@@ -391,7 +398,8 @@ setup_kube_config(){
   printf "and services up, which depends your hardware and VM setting. "
   __green  "\n$HOORAY: You can use kubeclt proxy to access the dashboard from localhost:8001"
   
-  _debug $END_KUBE_CONFIG
+  #  _debug $END_KUBE_CONFIG
+  _debug 
   unset KUBECONFIG
   
   printf -- "$END setup_kube_config(): %s" "[$(date)]" >&2; printf "\n" >&2
@@ -614,6 +622,7 @@ _process() {
           shift
         fi
         LOG_FILE="$DEFAULT_LOG_FILE"
+        _debug "LOG_FILE" "$LOG_FILE"
         if [ -z "$LOG_LEVEL" ]; then
           LOG_LEVEL="$DEFAULT_LOG_LEVEL"
         fi
