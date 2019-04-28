@@ -35,7 +35,7 @@ DEFAULT_LOG_LEVEL=$LOG_LEVEL_1
 CRYING="(T_T)"
 SMILING="(^_^)"
 WORKING="(6_6)"
-HOORAY="\\(^o^)/"
+HOORAY="(^o^)/"
 
 VERBOSE=0
 WORKING_DIR=""
@@ -165,8 +165,9 @@ _command_exists() {
 install_docker(){
   _debug install_docker 
 
-  echo $BEGIN_DOCKER
-  
+  # echo $BEGIN_DOCKER
+  printf -- "$BEGIN install_docker(): %s" "[$(date)] " >&2
+
   if _command_exists docker; then
     apt-get update;
     apt-get install -y apt-transport-https \
@@ -201,8 +202,8 @@ install_docker(){
       _debug "$HOORAY: docker is found!"
   fi
 
-  echo $END_DOCKER
-
+  # echo $END_DOCKER
+  printf -- "$END install_docker(): %s" "[$(date)] " >&2
 
 }
 
@@ -230,29 +231,32 @@ __update_cgroup(){
 
 install_kube(){
   _debug install_kube
-
-  echo $BEGIN_KUBE
   
+  printf -- "$BEGIN install_kube(): %s" "[$(date)] " >&2
+
   __update_cgroup
-  if [ -z $( _command_exists kubeadm) ] || [ -z $(_command_exists kubelet) ] || [ -z $(_command_exists kubectl) ] ;
-  then
-    apt-get update && apt-get install -y apt-transport-https curl
+  #if [ -z $( _command_exists kubeadm) ] || [ -z $(_command_exists kubelet) ] || [ -z $(_command_exists kubectl) ] ;
+  #then
   
-    _kube_key=$(apt-key finger  | egrep  "Google Cloud")
+  apt-get update && apt-get install -y apt-transport-https curl
 
-    [[ -z "$_kube_key" ]] &&  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-    
-     _kube_repo=$(apt-cache policy | egrep kube)
-     [[ -z "$_kube_repo" ]] && echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
+  # if _command_exists kubelet; then
+  _kube_key=$(apt-key finger  | egrep  "Google Cloud")
+  [[ -z "$_kube_key" ]] &&  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
   
-    apt-get update
-    apt-get install -y kubelet kubeadm kubectl
-    apt-mark hold kubelet kubeadm kubectl
-  else
-      _debug "$HOORAY: kubeadm is found."   
-  fi
-  echo $END_KUDE
+  _kube_repo=$(apt-cache policy | egrep kube)
+  [[ -z "$_kube_repo" ]] && echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
+  # else
+  #   curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+  #   echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
+  # fi
 
+
+  apt-get update
+  apt-get install -y kubelet kubeadm kubectl
+  apt-mark hold kubelet kubeadm kubectl
+
+  printf -- "$END install_kube(): %s" "[$(date)] " >&2
 }
 
 __disable_swap(){
@@ -411,12 +415,12 @@ init() {
   #  _install_heapster
    setup_kube_config
    
-   printf -- "$END--init(): %s" "[$(date)] " >&2  
+   printf -- "$END init(): %s" "[$(date)] " >&2  
 }
 
 reset() {
 
-  printf -- "$BEGIN--reset(): %s" "[$(date)] " >&2
+  printf -- "$BEGIN reset(): %s" "[$(date)] " >&2
 rst=$(_command_exists kubelet)
 echo $rst
   if _command_exists kubelet ; then
@@ -474,7 +478,7 @@ echo $rst
     exit
   fi;
   
-  printf -- "$END--reset(): %s" "[$(date)]\n " >&2
+  printf -- "$END reset(): %s" "[$(date)]\n " >&2
 }
 
 __uninstall(){
@@ -483,7 +487,7 @@ __uninstall(){
   read -p "Do you want to continue? Y or N [yYnN]: " _yes_or_no
 # echo $_yes_or_no
     if [[ "$_yes_or_no" == "Y" ]] || [[ "$_yes_or_no" == "y" ]] ; then
-      printf -- "$BEGIN__uninstall(): %s" "[$(date)] " >&2
+      printf -- "$BEGIN __uninstall(): %s" "[$(date)] " >&2
       _debug __uninstall
    
       __red "\n The script will start uninstallation process in 5 seconds. You can cancel by pressing Ctrl + C or Ctrl + D or Ctrl + Z".
@@ -503,7 +507,7 @@ __uninstall(){
       apt autoremove -y
       rm -f /usr/bin/kubeadm  /usr/bin/kubelet /usr/bin/kubectl
 
-      printf -- "$END__uninstall\(\): %s" "[$(date)] " >&2
+      printf -- "$END __uninstall(): %s" "[$(date)] " >&2
    fi
 }
 
