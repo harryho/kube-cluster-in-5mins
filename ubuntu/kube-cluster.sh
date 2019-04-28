@@ -481,7 +481,7 @@ __uninstall(){
   __red "WARNING!!! It is a hidden feature. You are supposed to know what you are doinig. \n"
 
   read -p "Do you want to continue? Y or N [yYnN]: " _yes_or_no
-echo $_yes_or_no
+# echo $_yes_or_no
     if [[ "$_yes_or_no" == "Y" ]] || [[ "$_yes_or_no" == "y" ]] ; then
       printf -- "$BEGIN__uninstall(): %s" "[$(date)] " >&2
       _debug __uninstall
@@ -494,8 +494,6 @@ echo $_yes_or_no
 
       systemctl stop kubelet
       systemctl stop docker*
-#      systemctl disable kubelet
-#     systemctl disable docker*
     
       _debug "Uninstall kubelet and docker"
 
@@ -508,8 +506,6 @@ echo $_yes_or_no
       printf -- "$END__uninstall\(\): %s" "[$(date)] " >&2
    fi
 }
-
-
 
 __init_setting(){
   WORKING_DIR=$HOME
@@ -592,9 +588,11 @@ _process() {
       --user)
         _USER="$2"
         if [[ "$_USER" == "root" ]]; then
-           cd  /$_USER
-        else 
-           cd /home/$_USER 
+          WORKING_DIR="/$_USER"
+          cd  /$_USER
+        else
+          WORKING_DIR="/home/$_USER"
+          cd /home/$_USER 
         fi
         shift 
         ;;
@@ -607,6 +605,7 @@ _process() {
         if _startswith "$_logfile" '-'; then
           _logfile=""
         else
+          DEFAULT_LOG_FILE="$WORKING_DIR/$_logfile"
           _debug "You can find log file from: $DEFAULT_LOG_FILE"
           shift
         fi
@@ -681,7 +680,7 @@ Commands:
   --install-kube                    Install kubeadm, kubelet and kubectl if kubernetes is not found.
   --init-cluster                    Initiate a new cluster if the kubelet is found. It will call --reset command to remove the existing one.
   --kube-config                     Setup a kube config to a new user home dir. 
-  --log    [/path/to/logfile]       Specifies the log file. The default is: \"$DEFAULT_LOG_FILE\" if you don't give a file path here.
+  --log    [logfile]                Specifies the log file. The default is: \"$DEFAULT_LOG_FILE\" if you don't give a file path here.
   --log-level 1|2                   Specifies the log level, default is 1.
   
 Parameters:
