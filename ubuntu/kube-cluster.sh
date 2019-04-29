@@ -114,21 +114,18 @@ _info() {
 
 _err() {
   _log "$@"
-  # if [ -z "$NO_TIMESTAMP" ] || [ "$NO_TIMESTAMP" = "0" ]; then
-    printf -- "ERROR: %s" "[$(date)]" >&2; printf "\n" >&2
-  # fi
+  printf -- "ERROR: %s" "[$(date)]" >&2; printf "\n" >&2
+
   if [ -z "$2" ]; then
     __red "$1" >&2
   else
     __red "$1='$2'" >&2
   fi
   printf "\n" >&2
-  # return 1
+
 }
 
 _debug() {
-#   echo "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}"
-#   echo "${LOG_FILE}"
   [ "$VERBOSE" -gt "0" ] && $( printf "$@" >&2 ; printf "\n" >&2 ; )
 
   if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_1" ]; then 
@@ -138,14 +135,10 @@ _debug() {
   if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_2" ]; then
      _printargs "$@" >&2
   fi
-  # if [ "${DEBUG:-$DEBUG_LEVEL_NONE}" -ge "$DEBUG_LEVEL_1" ]; then
-  #   _printargs "$@" >&2
-  # fi
 }
 
 _cleanup() {
   _USER=""
-  # DEBUG=$DEBUG_LEVEL_1
   LOG_LEVEL=$DEFAULT_LOG_LEVEL
   LOG_FILE=""
   VERBOSE=0
@@ -156,7 +149,6 @@ _check_permission(){
   then
     __red "The script must be run as root"
     __red "Please switch to root user"
-    # __hints
     exit
   fi
 }
@@ -169,7 +161,6 @@ _command_exists() {
 install_docker(){
   _debug install_docker
 
-  # echo $BEGIN_DOCKER
   printf -- "$BEGIN install_docker(): %s" "[$(date)]" >&2; printf "\n" >&2
 
   apt-get update;
@@ -181,7 +172,6 @@ install_docker(){
   sudo apt-key fingerprint 0EBFCD88
 
   add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs) stable"
-
 
   apt-get update
 
@@ -227,12 +217,10 @@ install_kube(){
 
   apt-get update && apt-get install -y apt-transport-https curl
 
-
   curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 
   echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
   
-
   apt-get update
   apt-get install -y kubelet kubeadm kubectl
   apt-mark hold kubelet kubeadm kubectl
@@ -246,7 +234,7 @@ __disable_swap(){
   SWAP=$(swapon -s)
   if [ -z "$SWAP" ]
   then
-     _debug "SWAP is disabled"
+    _debug "SWAP is disabled"
   else
     swapoff -a
     sed -i.bak -e '/^UUID.*swap/d' /etc/fstab
@@ -276,7 +264,6 @@ install_dashboard() {
 
   printf -- "$BEGIN install_dashboard(): %s" "[$(date)]" >&2; printf "\n" >&2
   _debug install_dashboard
-  # echo $BEGIN_DASHBOARD
 
   export KUBECONFIG=/etc/kubernetes/admin.conf
 
@@ -285,12 +272,10 @@ install_dashboard() {
 
   kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 
-
   # set node be able to schedule
   kubectl taint nodes --all node-role.kubernetes.io/master-
 
   # create new account and role bind for dashboard
-  # cat<<EOF | kubectl apply -f -
   cat<<EOF | kubectl apply -f -
 apiVersion: v1
 kind: ServiceAccount
@@ -335,10 +320,8 @@ EOF
 
 __install_heapster() {
 
-  #  echo $BEGIN_HEAPSTER
    _debug __install_heapster
    printf -- "$BEGIN __install_heapster(): %s" "[$(date)]" >&2; printf "\n" >&2
-
 
    [[ -d "us2hho-heapster" ]] && rm -rf us2hho-heapster
    git clone https://github.com/us2hho/heapster  us2hho-heapster
@@ -347,8 +330,6 @@ __install_heapster() {
    rm -rf us2hho-heapster
 
    printf -- "$END __install_heapster(): %s" "[$(date)]" >&2; printf "\n" >&2
-
-
 }
 
 setup_kube_config(){
@@ -356,9 +337,7 @@ setup_kube_config(){
   printf -- "$BEGIN setup_kube_config(): %s" "[$(date)]" >&2;
   printf "\n" >&2
 
-
-   # setup kube config for a regular user
-
+  # setup kube config for a regular user
   _debug "WORKING_DIR" "$WORKING_DIR"
   _debug "LOG_FILE" "$LOG_FILE"
 
@@ -369,20 +348,16 @@ setup_kube_config(){
       mv -f  $WORKING_DIR/.kube $WORKING_DIR/.kube_backup
   fi
 
-
-
   mkdir -p $WORKING_DIR/.kube
   cp -i /etc/kubernetes/admin.conf $WORKING_DIR/.kube/config
   chown -R $_USER:$_USER $WORKING_DIR/.kube
-
-  # sleep 5
 
   __green "$SMILING:new cluster is ready."
   printf "\nBefore you attempt to access the dashboard via browse, \n"
   printf "please check out the status of pods and services via 'kubectl'. \n"
   __green  "\n$HOORAY: You can use kubeclt proxy to access the dashboard from localhost:8001\n"
 
-  #  _debug $END_KUBE_CONFIG
+
   _debug "unset KUBECONFIG"
   unset KUBECONFIG
 
@@ -406,7 +381,7 @@ init() {
 
    init_cluster
    install_dashboard
-   #  _install_heapster
+
    setup_kube_config
 
    printf -- "$END init(): %s" "[$(date)]" >&2; 
@@ -417,9 +392,6 @@ reset() {
 
   printf -- "$BEGIN reset(): %s" "[$(date)]" >&2; 
   printf "\n" >&2
-
-#   rst=$(_command_exists kubelet)
-#   echo $rst
 
   if _command_exists kubelet ; then
      # check if the cluster is still available
@@ -484,34 +456,26 @@ __uninstall(){
   __red "WARNING!!! It is a hidden feature. You are supposed to know what you are doinig. \n"
 
   read -p "Do you want to continue? Y or N [yYnN]: " _yes_or_no
-# echo $_yes_or_no
-    if [[ "$_yes_or_no" == "Y" ]] || [[ "$_yes_or_no" == "y" ]] ; then
-      printf -- "$BEGIN __uninstall(): %s" "[$(date)]" >&2; 
-      printf "\n" >&2
 
-      _debug __uninstall
-
-      __red "\n The script will start uninstallation process in 5 seconds. You can cancel by pressing Ctrl + C or Ctrl + D or Ctrl + Z".
-
-      sleep 5
-
-      _debug "Stop and disable kubelet and docker"
-
-      
-      sudo systemctl disable docker
-      sudo systemctl disable kubelet
-
-      _debug "Uninstall kubelet and docker"
-
-      apt-mark unhold kubectl kubeadm kubelet
-      apt purge -y kubelet kubeadm kubectl
-      apt purge -y docker-ce docker-ce-cli containerd.io
-      apt autoremove -y
-      rm -f /usr/bin/kubeadm  /usr/bin/kubelet /usr/bin/kubectl
-
-      printf -- "$END __uninstall(): %s" "[$(date)]" >&2; 
-      printf "\n" >&2
-   fi
+  if [[ "$_yes_or_no" == "Y" ]] || [[ "$_yes_or_no" == "y" ]] ; then
+    printf -- "$BEGIN __uninstall(): %s" "[$(date)]" >&2; 
+    printf "\n" >&2
+    _debug __uninstall
+    __red "\n The script will start uninstallation process in 5 seconds. You can cancel by pressing Ctrl + C or Ctrl + D or Ctrl + Z".
+    sleep 5
+    _debug "Stop and disable kubelet and docker"
+    
+    sudo systemctl disable docker
+    sudo systemctl disable kubelet
+    _debug "Uninstall kubelet and docker"
+    apt-mark unhold kubectl kubeadm kubelet
+    apt purge -y kubelet kubeadm kubectl
+    apt purge -y docker-ce docker-ce-cli containerd.io
+    apt autoremove -y
+    rm -f /usr/bin/kubeadm  /usr/bin/kubelet /usr/bin/kubectl
+    printf -- "$END __uninstall(): %s" "[$(date)]" >&2; 
+    printf "\n" >&2
+  fi
 }
 
 __init_setting(){
