@@ -1,19 +1,19 @@
 #!/bin/bash
-set -e 
+set -e
 
 ##################################################################
 # Project: Kube-Cluster
 # Version: 1.0
 #
 # This script is meant to setup kubernetes cluster via kubeadm on Ubuntu 16+.
-# It is supposed to be run by root user. All installation follows the 
+# It is supposed to be run by root user. All installation follows the
 # instructions from https://kubernetes.io
 #
-# The script has been tested on Ubuntu Server 16, 18. You will get your 
+# The script has been tested on Ubuntu Server 16, 18. You will get your
 # cluster up and run in 5 mins.
-# 
-# Please check out the README of repo. I recommend you test it on VM via 
-# VirtualBox or VMWare first. 
+#
+# Please check out the README of repo. I recommend you test it on VM via
+# VirtualBox or VMWare first.
 ##################################################################
 
 
@@ -60,7 +60,7 @@ __red() {
 }
 
 _printargs() {
-  if [ "$VERBOSE" -gt "0" ]; then
+
     if [ -z "$NO_TIMESTAMP" ] || [ "$NO_TIMESTAMP" = "0" ]; then
       printf -- "%s" "[$(date)] "
     fi
@@ -69,8 +69,8 @@ _printargs() {
     else
       printf -- "%s" "$1='$2'"
     fi
-     printf "\n" 
-  fi
+     printf "\n"
+  
 }
 
 _upper_case() {
@@ -108,7 +108,7 @@ _log() {
 
 _info() {
   _log "$@"
-  _printargs "$@" 
+  _printargs "$@"
 }
 
 
@@ -127,13 +127,16 @@ _err() {
 }
 
 _debug() {
-  # echo "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}"
-  if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_1" ]; then
+#   echo "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}"
+#   echo "${LOG_FILE}"
+  [ "$VERBOSE" -gt "0" ] && $( printf "$@" >&2 ; printf "\n" >&2 ; )
+
+  if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_1" ]; then 
     _log "$@"
   fi
-  
+
   if [ "${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}" -ge "$LOG_LEVEL_2" ]; then
-    _printargs "$@" >&2
+     _printargs "$@" >&2
   fi
   # if [ "${DEBUG:-$DEBUG_LEVEL_NONE}" -ge "$DEBUG_LEVEL_1" ]; then
   #   _printargs "$@" >&2
@@ -150,7 +153,7 @@ _cleanup() {
 
 _check_permission(){
   if [[ "$(whoami)" != "root" ]]
-  then 
+  then
     __red "The script must be run as root"
     __red "Please switch to root user"
     # __hints
@@ -164,56 +167,41 @@ _command_exists() {
 }
 
 install_docker(){
-  _debug install_docker 
+  _debug install_docker
 
   # echo $BEGIN_DOCKER
   printf -- "$BEGIN install_docker(): %s" "[$(date)]" >&2; printf "\n" >&2
 
-  apt-get update
+  apt-get update;
   apt-get install -y apt-transport-https \
     ca-certificates curl \
     gnupg-agent software-properties-common;
 
-    _finger=$(apt-key finger | egrep "0EBFCD88")
-    # echo $_finger
-  # if _command_exists docker; then
-  [ -z "$_finger" ] && ( 
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-    apt-key fingerprint 0EBFCD88 )
-    
-  
-  _docker_repo=$(apt-cache policy|egrep "docker")
-    # if [ -z "$_docker_repo" ] ;
-    # then
-  [ -z "$_docker_repo" ] && (
-    add-apt-repository \
-     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-     $(lsb_release -cs) \
-     stable" )
-    # fi
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  sudo apt-key fingerprint 0EBFCD88
+
+  add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs) stable"
+
 
   apt-get update
 
   apt-get install -y docker-ce docker-ce-cli containerd.io
 
-  usermod -aG docker $_USER 
-  # else 
-      # _debug "$HOORAY: docker is found!"
-  # fi
-
-  # echo $END_DOCKER
+  usermod -aG docker $_USER
+  
   printf -- "$END install_docker(): %s" "[$(date)]" >&2; printf "\n" >&2
 
 }
 
 __update_cgroup(){
 
-  # setup the daemon with systemd as cgroup driver 
+  _debug "$BEGIN __update_cgroup"
+  # setup the daemon with systemd as cgroup driver
   echo '
   {
     "exec-opts": ["native.cgroupdriver=systemd"],
-    "log-driver": "json-file", 
-    "log-opts": { 
+    "log-driver": "json-file",
+    "log-opts": {
       "max-size": "100m"
     },
     "storage-driver": "overlay2"
@@ -224,38 +212,33 @@ __update_cgroup(){
   # # Restart docker.
   systemctl daemon-reload
   systemctl restart docker
+
+   _debug "$END __update_cgroup"
 }
 
 
 
 install_kube(){
   _debug install_kube
-  
+
   printf -- "$BEGIN install_kube(): %s" "[$(date)]" >&2; printf "\n" >&2
 
-  __update_cgroup
-  #if [ -z $( _command_exists kubeadm) ] || [ -z $(_command_exists kubelet) ] || [ -z $(_command_exists kubectl) ] ;
-  #then
-  
+  _debug __update_cgroup
+
   apt-get update && apt-get install -y apt-transport-https curl
 
-  # if _command_exists kubelet; then
-  _kube_key=$(apt-key finger  | egrep  "Google Cloud")
-  [[ -z "$_kube_key" ]] &&  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-  
-  _kube_repo=$(apt-cache policy | egrep kube)
-  [[ -z "$_kube_repo" ]] && echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
-  # else
-  #   curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-  #   echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
-  # fi
 
+  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+  echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
+  
 
   apt-get update
   apt-get install -y kubelet kubeadm kubectl
   apt-mark hold kubelet kubeadm kubectl
 
-  printf -- "$END install_kube(): %s" "[$(date)]" >&2; printf "\n" >&2
+  printf -- "$END install_kube(): %s" "[$(date)]" >&2; 
+  printf "\n" >&2
 }
 
 __disable_swap(){
@@ -277,10 +260,10 @@ init_cluster() {
   _debug init_cluster
 
   __disable_swap
-   
+
   kubeadm init>kube-init.log
   cat kube-init.log
-  
+
   # reload daemon and restart kubelet
   systemctl daemon-reload
   systemctl restart kubelet
@@ -290,24 +273,24 @@ init_cluster() {
 }
 
 install_dashboard() {
-  
+
   printf -- "$BEGIN install_dashboard(): %s" "[$(date)]" >&2; printf "\n" >&2
   _debug install_dashboard
   # echo $BEGIN_DASHBOARD
 
   export KUBECONFIG=/etc/kubernetes/admin.conf
-  
+
   ## Install pod network
   sysctl net.bridge.bridge-nf-call-iptables=1
-  
+
   kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
-  
-  
+
+
   # set node be able to schedule
   kubectl taint nodes --all node-role.kubernetes.io/master-
-  
+
   # create new account and role bind for dashboard
-  # cat<<EOF | kubectl apply -f - 
+  # cat<<EOF | kubectl apply -f -
   cat<<EOF | kubectl apply -f -
 apiVersion: v1
 kind: ServiceAccount
@@ -326,24 +309,24 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: admin-user
-  namespace: kube-system  
+  namespace: kube-system
 EOF
-  
-  # install dashboard 
+
+  # install dashboard
   kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
-  
+
   # get token to access dashboard
   kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}')
-  
+
   # set nodeport for dashboard pod
   _debug "$WORKING:rename context name to us2-dev-cxt"
-  kubectl config use-context kubernetes-admin@kubernetes 
+  kubectl config use-context kubernetes-admin@kubernetes
   kubectl config rename-context  kubernetes-admin@kubernetes us2-dev-cxt
   kubectl config use-context us2-dev-cxt
-  
-  _debug "Update IP type to nodeport" 
+
+  _debug "Update IP type to nodeport"
   kubectl -n kube-system  get service kubernetes-dashboard -o yaml | sed -e 's/type\: ClusterIP/type\: NodePort/g' | kubectl replace -f -
-  
+
   __install_heapster
 
   printf -- "$END install_dashboard(): %s" "[$(date)]" >&2; printf "\n" >&2
@@ -351,17 +334,17 @@ EOF
  }
 
 __install_heapster() {
-   
+
   #  echo $BEGIN_HEAPSTER
    _debug __install_heapster
    printf -- "$BEGIN __install_heapster(): %s" "[$(date)]" >&2; printf "\n" >&2
 
 
-   [[ -d "harryho-heapster" ]] && rm -rf harryho-heapster
-   git clone https://github.com/harryho/heapster  harryho-heapster
-   kubectl apply -f harryho-heapster/deploy/kube-config/rbac/
-   kubectl apply -f harryho-heapster/deploy/kube-config/influxdb/
-   rm -rf harryho-heapster
+   [[ -d "us2hho-heapster" ]] && rm -rf us2hho-heapster
+   git clone https://github.com/us2hho/heapster  us2hho-heapster
+   kubectl apply -f us2hho-heapster/deploy/kube-config/rbac/
+   kubectl apply -f us2hho-heapster/deploy/kube-config/influxdb/
+   rm -rf us2hho-heapster
 
    printf -- "$END __install_heapster(): %s" "[$(date)]" >&2; printf "\n" >&2
 
@@ -370,50 +353,53 @@ __install_heapster() {
 
 setup_kube_config(){
 
-  printf -- "$BEGIN setup_kube_config(): %s" "[$(date)]" >&2; printf "\n" >&2
+  printf -- "$BEGIN setup_kube_config(): %s" "[$(date)]" >&2;
+  printf "\n" >&2
 
 
    # setup kube config for a regular user
-  
+
   _debug "WORKING_DIR" "$WORKING_DIR"
   _debug "LOG_FILE" "$LOG_FILE"
 
   if [[ -d "$WORKING_DIR/.kube" ]]
-  then 
+  then
       _debug "$WORKING: Backup old .kube folder to .kube_backup"
       rm -rf $WORKING_DIR/.kube_backup
       mv -f  $WORKING_DIR/.kube $WORKING_DIR/.kube_backup
   fi
 
 
-  
+
   mkdir -p $WORKING_DIR/.kube
   cp -i /etc/kubernetes/admin.conf $WORKING_DIR/.kube/config
   chown -R $_USER:$_USER $WORKING_DIR/.kube
-  
+
   # sleep 5
-  
+
   __green "$SMILING:new cluster is ready."
-  printf "It will take some time (30 seconds ~ 3 mins) to get all pods \n"
-  printf "and services up, which depends your hardware and VM setting. "
-  __green  "\n$HOORAY: You can use kubeclt proxy to access the dashboard from localhost:8001"
-  
+  printf "\nBefore you attempt to access the dashboard via browse, \n"
+  printf "please check out the status of pods and services via 'kubectl'. \n"
+  __green  "\n$HOORAY: You can use kubeclt proxy to access the dashboard from localhost:8001\n"
+
   #  _debug $END_KUBE_CONFIG
-  _debug 
+  _debug "unset KUBECONFIG"
   unset KUBECONFIG
-  
-  printf -- "$END setup_kube_config(): %s" "[$(date)]" >&2; printf "\n" >&2
-  # cd $_USER 
+
+  printf -- "$END setup_kube_config(): %s" "[$(date)]" >&2; 
+  printf "\n" >&2
+
   su $_USER && cd
 
 }
 
 init() {
-   printf -- "$BEGIN init(): %s" "[$(date)]" >&2; printf "\n" >&2
+   printf -- "$BEGIN init(): %s" "[$(date)]" >&2; 
+   printf "\n" >&2
 
    _debug init
 
-   install_docker 
+   install_docker
    install_kube
 
    reset
@@ -422,39 +408,43 @@ init() {
    install_dashboard
    #  _install_heapster
    setup_kube_config
-   
-   printf -- "$END init(): %s" "[$(date)]" >&2; printf "\n" >&2  
+
+   printf -- "$END init(): %s" "[$(date)]" >&2; 
+   printf "\n" >&2
 }
 
 reset() {
 
-  printf -- "$BEGIN reset(): %s" "[$(date)]" >&2; printf "\n" >&2
-rst=$(_command_exists kubelet)
-echo $rst
+  printf -- "$BEGIN reset(): %s" "[$(date)]" >&2; 
+  printf "\n" >&2
+
+#   rst=$(_command_exists kubelet)
+#   echo $rst
+
   if _command_exists kubelet ; then
      # check if the cluster is still available
     NodeNotFound=$(systemctl status kubelet | grep "not found" | wc --lines)
-  
+
     if [ $NodeNotFound > 0 ] ;
     then
-      printf "\n $CRYING: WARNING: Your IP address has been changed!!!"
+    #   printf "\n $CRYING: WARNING: Your IP address has been changed!!!"
       printf "\n $WORKING: Kubeadm will be reset and init again. \n"
     fi;
-  
+
     _debug "$WORKING: reset kubeadm at "$(date)
-  
-  
+
+
     kubeadm reset  -f
-  
+
     iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
-  
-  
+
+
     if [[ -d "/etc/kubernetes" ]]
     then
       rm -rf /etc/kubernetes/manifests /etc/kubernetes/pki
-      rm -f /etc/kubernetes/admin.conf /etc/kubernetes/kubelet.conf /etc/kubernetes/bootstrap-kubelet.conf /etc/kubernetes/controller-manager.conf /etc/kubernetes/scheduler.conf 
+      rm -f /etc/kubernetes/admin.conf /etc/kubernetes/kubelet.conf /etc/kubernetes/bootstrap-kubelet.conf /etc/kubernetes/controller-manager.conf /etc/kubernetes/scheduler.conf
     fi;
-  
+
     systemctl restart docker
     systemctl daemon-reload
     systemctl stop kubelet
@@ -464,49 +454,53 @@ echo $rst
       docker container stop $c  --force
       docker container rm $c --force
     done;
-  
-    if [[ -d "/home/$_USER/.kube/" ]] 
-    then 
+
+    if [[ -d "/home/$_USER/.kube/" ]]
+    then
       [[ -f "/home/$_USER/.kube/config" ]] && rm -f /home/$_USER/.kube/config;
-      [[ -d "/home/$_USER/.kube/cache" ]] && rm -rf /home/$_USER/.kube/cache; 
+      [[ -d "/home/$_USER/.kube/cache" ]] && rm -rf /home/$_USER/.kube/cache;
     fi;
-  
-    if [[ -d "/root/.kube/" ]] 
-    then 
+
+    if [[ -d "/root/.kube/" ]]
+    then
       [[ -f "/root/.kube/config" ]] && rm -f /root/.kube/config;
       [[ -d "/root/.kube/cache" ]] && rm -rf /root/.kube/cache;
     fi;
-  
+
     systemctl start kubelet
   else
     msg="$CRYING: Kubelet is not found! Please install kubelet first"
-    echo $msg
     _debug $msg
     __hints
     exit
   fi;
-  
-  printf -- "$END reset(): %s" "[$(date)]\n " >&2
+
+  printf -- "$END reset(): %s" "[$(date)] " >&2; 
+  printf "\n" >&2
 }
 
 __uninstall(){
+
   __red "WARNING!!! It is a hidden feature. You are supposed to know what you are doinig. \n"
 
   read -p "Do you want to continue? Y or N [yYnN]: " _yes_or_no
 # echo $_yes_or_no
     if [[ "$_yes_or_no" == "Y" ]] || [[ "$_yes_or_no" == "y" ]] ; then
-      printf -- "$BEGIN __uninstall(): %s" "[$(date)]" >&2; printf "\n" >&2
+      printf -- "$BEGIN __uninstall(): %s" "[$(date)]" >&2; 
+      printf "\n" >&2
+
       _debug __uninstall
-   
+
       __red "\n The script will start uninstallation process in 5 seconds. You can cancel by pressing Ctrl + C or Ctrl + D or Ctrl + Z".
-    
+
       sleep 5
 
       _debug "Stop and disable kubelet and docker"
 
-      systemctl stop kubelet
-      systemctl stop docker*
-    
+      
+      sudo systemctl disable docker
+      sudo systemctl disable kubelet
+
       _debug "Uninstall kubelet and docker"
 
       apt-mark unhold kubectl kubeadm kubelet
@@ -515,7 +509,8 @@ __uninstall(){
       apt autoremove -y
       rm -f /usr/bin/kubeadm  /usr/bin/kubelet /usr/bin/kubectl
 
-      printf -- "$END __uninstall(): %s" "[$(date)]" >&2; printf "\n" >&2
+      printf -- "$END __uninstall(): %s" "[$(date)]" >&2; 
+      printf "\n" >&2
    fi
 }
 
@@ -525,7 +520,7 @@ __init_setting(){
 }
 
 logo(){
-cat >&2<<- 'EOF'   
+cat >&2<<- 'EOF'
  .S    S.    .S       S.    .S_SSSs      sSSs
 .SS    SS.  .SS       SS.  .SS~SSSSS    d%%SP
 S%S    S&S  S%S       S%S  S%S   SSSS  d%S'
@@ -561,7 +556,7 @@ _process() {
   _log=""
   _log_level=""
   _debug "$@"
-  
+
   while [ ${#} -gt 0 ]; do
     _debug "${1}"
     case "${1}" in
@@ -581,7 +576,7 @@ _process() {
         ;;
       --install-kube)
         _CMD="install_kube"
-        ;; 
+        ;;
       --init-cluster)
         _CMD="init_cluster"
         ;;
@@ -592,11 +587,11 @@ _process() {
         _CMD="setup_kube_config"
         ;;
       --reset)
-        _CMD="reset" 
-        ;; 
+        _CMD="reset"
+        ;;
       --uninstall)
-        _CMD="uninstall" 
-        ;;       
+        _CMD="uninstall"
+        ;;
       --user)
         _USER="$2"
         if [[ "$_USER" == "root" ]]; then
@@ -604,9 +599,9 @@ _process() {
           cd  /$_USER
         else
           WORKING_DIR="/home/$_USER"
-          cd /home/$_USER 
+          cd /home/$_USER
         fi
-        shift 
+        shift
         ;;
       --verbose)
         VERBOSE=1
@@ -630,6 +625,7 @@ _process() {
       --log-level)
         _log_level="$2"
         LOG_LEVEL="$_log_level"
+        echo $LOG_LEVEL
         shift
         ;;
       *)
@@ -645,7 +641,7 @@ _process() {
 
 
   case "${_CMD}" in
-    init) 
+    init)
       init
       ;;
     reset)
@@ -687,27 +683,43 @@ showhelp() {
 Commands:
   --help, -h                        Show this help message.
   --version, -v                     Show version info.
-  --init                            Launch a few commands in order, including install docker and kubernetes, if they are not found in the system, and then create a new cluster. If existing cluster is found, the script will call --reset command to remove the existing cluster. After that, it will install dashboard and heapster. Finally, it will setup kube configuation to the user home dir. 
-  --reset                           Cleanup and remove the old cluster.               
+  --init                            Launch a few commands in order, including install docker and kubernetes, if they are not found in the system, and then create a new cluster. If existing cluster is found, the script will call --reset command to remove the existing cluster. After that, it will install dashboard and heapster. Finally, it will setup kube configuation to the user home dir.
+  --reset                           Cleanup and remove the old cluster.
   --install-docker                  Install docker if the docker is not found.
   --install-kube                    Install kubeadm, kubelet and kubectl if kubernetes is not found.
   --init-cluster                    Initiate a new cluster if the kubelet is found. It will call --reset command to remove the existing one.
-  --kube-config                     Setup a kube config to a new user home dir. 
+  --kube-config                     Setup a kube config to a new user home dir.
   --log    [logfile]                Specifies the log file. The default is: \"$DEFAULT_LOG_FILE\" if you don't give a file path here.
   --log-level 1|2                   Specifies the log level, default is 1.
-  
+
 Parameters:
   --user   <user_name>              Specifies a user and user's home dir as working dir for docker and kube. Root user and its home dir is not recommended.
 
 Examples:
+- Sample 1
   Following command will commmit a few actions:
   * Install docker and kube if they are found
   * Reset old cluster if it is not available because of change of network
-  * Initiate a new cluster and save configuration to dir /home/my_user_name
-  * Log all information to /home/my_user_name/my-cluster.log
+  * Initiate a new cluster and save configuration to dir /home/user_name
+  * Log all information to /home/user_name/my-cluster.log
   * Print out all information to terminal
 
-  kube-cluster.sh --init my_user_name  --verbose --log my-cluster.log --log-level 2
+  ./kube-cluster.sh --init --user user_name  --verbose --log my-cluster.log
+
+- Sample 2
+  Use reset command to remove and cleanup the cluster 
+
+  ./kube-cluster.sh --reset --user user_name --verbose --log reset.log
+
+- Sample 3
+  Install docker 
+
+  ./kube-cluster.sh --install-docker --user user_name
+
+- Sample 4
+  Install kubeadm, kubelet and kubectl 
+
+  ./kube-cluster.sh --install-kube --user user_name
 "
 }
 
@@ -719,5 +731,4 @@ main() {
 }
 
 main "$@"
-
 
