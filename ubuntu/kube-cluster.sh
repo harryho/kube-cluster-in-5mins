@@ -229,7 +229,7 @@ install_kube(){
   printf "\n" >&2
 }
 
-__disable_swap(){
+disable_swap(){
 
   SWAP=$(swapon -s)
   if [ -z "$SWAP" ]
@@ -247,7 +247,7 @@ init_cluster() {
   printf -- "$BEGIN init_cluster(): %s" "[$(date)]" >&2; printf "\n" >&2
   _debug init_cluster
 
-  __disable_swap
+  disable_swap
 
   kubeadm init>kube-init.log
   cat kube-init.log
@@ -553,6 +553,9 @@ _process() {
       --reset)
         _CMD="reset"
         ;;
+      --disable-swap)
+        _CMD="disable_swap"
+        ;;
       --uninstall)
         _CMD="uninstall"
         ;;
@@ -626,6 +629,9 @@ _process() {
     setup_kube_config)
       setup_kube_config
       ;;
+    disable_swap)
+      disable_swap
+      ;;
     uninstall)
       __uninstall
       ;;
@@ -653,11 +659,12 @@ Commands:
   --install-kube                    Install kubeadm, kubelet and kubectl if kubernetes is not found.
   --init-cluster                    Initiate a new cluster if the kubelet is found. It will call --reset command to remove the existing one.
   --kube-config                     Setup a kube config to a new user home dir.
-  --log    [logfile]                Specifies the log file. The default is: \"$DEFAULT_LOG_FILE\" if you don't give a file path here.
-  --log-level 1|2                   Specifies the log level, default is 1.
+  --disable-swap                    Disable swap for kubernetes and comment out swap drive on /etd/fstab
 
 Parameters:
   --user   <user_name>              Specifies a user and user's home dir as working dir for docker and kube. Root user and its home dir is not recommended.
+  --log    [logfile]                Specifies the log file. The default is: \"$DEFAULT_LOG_FILE\" if you don't give a file path here.
+  --log-level 1|2                   Specifies the log level, default is 1.
 
 Examples:
 - Sample 1
