@@ -164,24 +164,26 @@ install_docker(){
   printf -- "$BEGIN install_docker(): %s" "[$(date)]" >&2; printf "\n" >&2
 
   _debug "Remove old version docker first."
+  sudo yum remove -y docker \
+                    docker-client \
+                    docker-client-latest \
+                    docker-common \
+                    docker-latest \
+                    docker-latest-logrotate \
+                    docker-logrotate \
+                    docker-engine
 
-  sudo apt-get remove docker \
-       docker-engine \
-       docker.io containerd runc
+  sudo yum install -y yum-utils \
+  device-mapper-persistent-data \
+  lvm2
 
-  apt-get update;
-  apt-get install -y apt-transport-https \
-    ca-certificates curl \
-    gnupg-agent software-properties-common;
+  sudo yum-config-manager \
+    --add-repo \
+    https://download.docker.com/linux/centos/docker-ce.repo
 
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-  sudo apt-key fingerprint 0EBFCD88
+  sudo yum install -y docker-ce docker-ce-cli containerd.io
 
-  add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs) stable"
-
-  apt-get update
-
-  apt-get install -y docker-ce docker-ce-cli containerd.io
+  systemctl enable docker.service
 
   usermod -aG docker $_USER
   
@@ -192,44 +194,105 @@ install_docker(){
 __update_cgroup(){
 
   _debug "$BEGIN __update_cgroup"
-  # setup the daemon with systemd as cgroup driver
-  echo '
-  {
-    "exec-opts": ["native.cgroupdriver=systemd"],
-    "log-driver": "json-file",
-    "log-opts": {
-      "max-size": "100m"
-    },
-    "storage-driver": "overlay2"
-  }'>/etc/docker/daemon.json
+
+  ## Create /etc/docker directory.
+  mkdir /etc/docker
+
+  # Setup daemon.
+  cat>/etc/docker/daemon.json<<-EOF
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2",
+  "storage-opts": [
+    "overlay2.override_kernel_check=true"
+  ]
+}
+EOF
 
   mkdir -p /etc/systemd/system/docker.service.d
 
-  # # Restart docker.
+  # Restart Docker
   systemctl daemon-reload
   systemctl restart docker
 
-   _debug "$END __update_cgroup"
+  _debug "$END __update_cgroup"
 }
 
+__update_selinux_firewall_iptables() {
 
+  printf -- "$BEGIN __update_selinux_firewall_iptables(): %s" "[$(date)]" >&2; printf "\n" >&2
+
+  _debug "Disable SELinux"
+  setenforce 0
+  sed -i --follow-symlinks \
+    's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
+  
+  _debug "Ensure ports [6443 10250] are open permanently"
+
+  firewall-cmd --permanent --add-port=6443/tcp
+  firewall-cmd --permanent --add-port=2379-2380/tcp
+  firewall-cmd --permanent --add-port=10250/tcp
+  firewall-cmd --permanent --add-port=10251/tcp
+  firewall-cmd --permanent --add-port=10252/tcp
+  firewall-cmd --permanent --add-port=10255/tcp
+  firewall-cmd --reload
+
+  _debug "Enable iptables"
+
+  cat >/etc/sysctl.d/k8s.conf<<-EOF
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+  sysctl --system
+
+
+  printf -- "$END __update_selinux_firewall_iptables(): %s" "[$(date)]" >&2; printf "\n" >&2
+}
 
 install_kube(){
   _debug install_kube
 
   printf -- "$BEGIN install_kube(): %s" "[$(date)]" >&2; printf "\n" >&2
 
-  _debug __update_cgroup
-
-  apt-get update && apt-get install -y apt-transport-https curl
-
-  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-
-  echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
+  # _debug 
   
-  apt-get update
-  apt-get install -y kubelet kubeadm kubectl
-  apt-mark hold kubelet kubeadm kubectl
+  __update_cgroup
+
+  __update_selinux_firewall_iptables
+
+  # apt-get update && apt-get install -y apt-transport-https curl
+
+  # curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+  # echo "deb https://apt.kubernetes.io/ kubernetes-xenial main">/etc/apt/sources.list.d/kubernetes.list
+  
+  # apt-get update
+  # apt-get install -y kubelet kubeadm kubectl
+  # apt-mark hold kubelet kubeadm kubectl
+
+  cat>/etc/yum.repos.d/kubernetes.repo <<-EOF 
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+exclude=kube*
+EOF
+
+  # Set SELinux in permissive mode (effectively disabling it)
+  setenforce 0
+  sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+
+  yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+
+  systemctl enable --now kubelet
+
 
   printf -- "$END install_kube(): %s" "[$(date)]" >&2; 
   printf "\n" >&2
@@ -243,7 +306,7 @@ disable_swap(){
     _debug "SWAP is disabled"
   else
     swapoff -a
-    sed -i.bak -e '/^UUID.*swap/d' /etc/fstab
+    sed -i.bak -e '/^\/dev.*swap/d' /etc/fstab
     _debug "Swap drive is removed. You can roll back from file /etc/fstab.bak"
   fi
 }
