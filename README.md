@@ -5,7 +5,7 @@
 ## Prerequisites
 
 * You have a Linux machine in place. Physical or virtual machine doesn't mather.
-* Only the Ubuntu Server 16+, 18+ or CentOS 7 have been tested.
+* The Linux OS is supposed to be one of folllowing distroes: the Ubuntu 16+, 18+ or CentOS 7.
 * Internet is available on your machine
  
 
