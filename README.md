@@ -12,7 +12,8 @@
 ## What will you get
 
 ### Screenshots
-[kube_pods_metrics](screenshots/kube_pods_metrics.png)
+
+![kube pods metrics](screenshots/kube_pods_metrics.png)
 
 ## Todo List
 * Add a script for Container Linux
