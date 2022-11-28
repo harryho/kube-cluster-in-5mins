@@ -6,9 +6,9 @@ install__ubuntu_packages(){
   cp ~/.bashrc ~/.bashrc.bak
   cp ~/.profile ~/.profile.bak
 
-  echo "alias rm='rm -i'">>~/.bashrc
-  echo "alias scpf='source ~/.profile'">>.bashrc
-  echo "alias scrc='source ~/.bashrc'">>.bashrc
+  echo "alias rm='rm -i'" >> ~/.bashrc
+  echo "alias scpf='source ~/.profile'">> ~/.bashrc
+  echo "alias scrc='source ~/.bashrc'">> ~/.bashrc
 }
 
 install_centos_packages(){
@@ -18,9 +18,9 @@ install_centos_packages(){
   cp ~/.bashrc ~/.bashrc.bak
   cp ~/.profile ~/.profile.bak
 
-  echo "alias rm='rm -i'">>~/.bashrc
-  echo "alias scpf='source ~/.profile'">>.bashrc
-  echo "alias scrc='source ~/.bashrc'">>.bashrc
+  echo "alias rm='rm -i'" >> ~/.bashrc
+  echo "alias scpf='source ~/.profile'" >> ~/.bashrc
+  echo "alias scrc='source ~/.bashrc'" >> ~/.bashrc
 }
 
 
@@ -52,6 +52,8 @@ install_runc(){
   wget https://github.com/opencontainers/runc/releases/download/v1.1.4/runc.amd64
 
   sudo install -m 755 runc.amd64 /usr/local/sbin/runc
+
+  sudo ln -s /usr/lib/cri-o-runc/sbin/runc /usr/local/bin
 }
 
 #### Install Kubectl
@@ -74,7 +76,7 @@ install_kubectl(){
   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
   # Add bash completion
-  echo 'source <(kubectl completion bash)' >>~/.bashrc
+  echo 'source <(kubectl completion bash)' >> ~/.bashrc
   source ~/.bashrc
 
   # check version
@@ -128,12 +130,13 @@ net.ipv4.ip_forward                 = 1
 EOF
 # Apply sysctl params without reboot
 sudo sysctl --system
+sleep 5
 }
 
 
 ### Install CNI
 
-isntall_cni(){
+install_cni(){
   wget https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
   sudo rm -rf /usr/local/go && sudo  tar -C /usr/local -xzf go1.19.3.linux-amd64.tar.gz
 
@@ -145,24 +148,34 @@ isntall_cni(){
   cd containerd/script/setup
   ./install-cni
 
+sleep 5
 }
 
 ### pre-run kubeadm 
 
 pre_run_kubeadm() {
-  sudo swapoff -a 
+
+  sudo cp /etc/fstab /etc/fstab.bak
+  sudo sed -i.bak -e '/.*swap/d' /etc/fstab
+  sudo swapoff -a
+  sudo cat /proc/swaps
+
   sudo apt install ebtables ethtool
   sudo apt install socat
   sudo apt install conntrack
   sudo apt install socat
+
+  sleep 5
 }
 
 ### Create Kubernetes Cluster
 
 create_cluster(){
   sudo kubeadm init > ka-init.log
-
+  sleep 2
   cat ka-init.log
+
+
 }
 
 
@@ -193,8 +206,14 @@ install_metric_server(){
 
 ### Reset 
 reset() {
-    kubeadm reset  -f
-    iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+
+kubectl drain $1 --delete-emptydir-data --force --ignore-daemonsets
+kubectl uncordon
+
+kubeadm reset
+
+sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X
+
 }
 
 
@@ -213,7 +232,7 @@ init_master(){
 
   update_network_cfg
 
-  isntall_cni
+  install_cni
 
   pre_run_kubeadm
 
@@ -235,7 +254,7 @@ init_node() {
 
   update_network_cfg
 
-  isntall_cni
+  install_cni
 
   pre_run_kubeadm
 
@@ -260,17 +279,18 @@ main() {
       init_node
       ;;
     r|reset)
-      reset
+      reset $2
       ;;
     *)
-      echo "Usage: $0 <[u]buntu| [c]entos | [m]aster | [n]ode | [r]eset>
-      u: Init ubuntu env
-      c: Init centos env
-      m: Create master control plane
-      n: Create worker ndoe
-      r: Reset configuration
-      "
+echo "Usage: $0 <[u]buntu| [c]entos | [m]aster | [n]ode >
+u: Init ubuntu env
+c: Init centos env
+m: Create master control plane
+n: Create worker ndoe
 
+Usage: [r]eset <node_name>
+r: Reset configuration
+"
       return 1
       ;;
   esac
